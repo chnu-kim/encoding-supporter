@@ -245,6 +245,49 @@ console.log('\n[4] 투명 webm + 오디오 → VP8 WebM: 알파와 소리를 모
   check('중앙은 불투명하다', () => assert.equal(center[3], 255));
 }
 
+// ------------------------------------------------- 5. 변환 도중 취소 (취소는 실패가 아니다)
+
+console.log('\n[5] 변환 도중 취소: 내부 사정이 아니라 취소했다고 알린다');
+{
+  await page.goto(`${base}/public/index.html`);
+  await page.waitForFunction(() => globalThis.__app !== undefined);
+  await page.setInputFiles('#fileInput', join(fixtures, 'alpha-vp9-long.webm'));
+  await page.waitForSelector('#panel:not([hidden])', { timeout: 30_000 });
+
+  await page.click('#convertBtn');
+  // 인코더가 실제로 돌기 시작한 뒤에 눌러야 취소 경로를 지나간다.
+  await page.waitForFunction(
+    () => Number.parseInt(document.getElementById('progressText').textContent, 10) > 0,
+    { timeout: 60_000 },
+  );
+  await page.click('#cancelBtn');
+  await page.waitForSelector('#error:not([hidden])', { timeout: 30_000 });
+
+  const s = await page.evaluate(() => ({
+    error: document.getElementById('error').textContent,
+    resultShown: !document.getElementById('result').hidden,
+    convertDisabled: document.getElementById('convertBtn').disabled,
+    cancelHidden: document.getElementById('cancelBtn').hidden,
+    progressHidden: document.getElementById('progressRow').hidden,
+  }));
+
+  check('취소하면 취소했다고 알린다', () => assert.match(s.error, /취소/));
+  check('실패했다고 말하지 않는다', () => assert.doesNotMatch(s.error, /실패/));
+  check('인코더 내부 사정을 노출하지 않는다', () => assert.doesNotMatch(s.error, /splitter|closed|Error/i));
+  check('취소했으면 결과를 내놓지 않는다', () => assert.equal(s.resultShown, false));
+  check('취소 후 진행률을 감춘다', () => assert.equal(s.progressHidden, true));
+  check('취소 후 취소 버튼을 감춘다', () => assert.equal(s.cancelHidden, true));
+  check('취소 후 다시 변환할 수 있다', () => assert.equal(s.convertDisabled, false));
+
+  // 취소가 앱 상태를 오염시키지 않았는지, 짧은 파일로 끝까지 변환해 확인한다.
+  await page.setInputFiles('#fileInput', join(fixtures, 'alpha-vp9.webm'));
+  await page.waitForSelector('#panel:not([hidden])', { timeout: 30_000 });
+  await page.click('#convertBtn');
+  const recovered = await page.waitForSelector('#result:not([hidden])', { timeout: 120_000 })
+    .then(() => true).catch(() => false);
+  check('취소한 뒤에도 다음 변환이 정상 완료된다', () => assert.equal(recovered, true));
+}
+
 // ---------------------------------------------------------------------------
 
 await browser.close();

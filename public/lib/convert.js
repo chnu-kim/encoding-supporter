@@ -139,7 +139,11 @@ function backgroundCompositor(fill) {
   };
 }
 
+const cancelled = () => new DOMException('취소되었습니다.', 'AbortError');
+
 export async function convertFile(file, plan, { onProgress, signal } = {}) {
+  if (signal?.aborted) throw cancelled();
+
   const input = new Input({ formats: ALL_FORMATS, source: new BlobSource(file) });
   const output = new Output({ format: buildOutputFormat(plan.format.id), target: new BufferTarget() });
 
@@ -170,11 +174,17 @@ export async function convertFile(file, plan, { onProgress, signal } = {}) {
 
   const abort = () => { void conversion.cancel(); };
   signal?.addEventListener('abort', abort, { once: true });
+  // 파일을 여는 동안 이미 취소했다면 'abort' 이벤트는 다시 오지 않는다.
+  if (signal?.aborted) abort();
 
   try {
     await conversion.execute();
-    if (signal?.aborted) throw new DOMException('취소되었습니다.', 'AbortError');
+    if (signal?.aborted) throw cancelled();
     return { blob: new Blob([output.target.buffer], { type: plan.format.mimeType }), droppedAudio };
+  } catch (error) {
+    // 취소는 실패가 아니다. `cancel()`은 돌고 있던 인코더 파이프라인을 무너뜨리면서
+    // 그 내부 사정을 담은 에러를 던진다. 사용자가 취소를 눌러 생긴 에러라면 감춘다.
+    throw signal?.aborted ? cancelled() : error;
   } finally {
     signal?.removeEventListener('abort', abort);
     conversion.onProgress = null;
