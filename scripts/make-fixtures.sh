@@ -24,6 +24,13 @@ ffmpeg -hide_banner -loglevel error -y \
   -c:v libvpx-vp9 -pix_fmt yuv420p -c:a libopus \
   "$out/opaque-vp9-opus.webm"
 
+# 알파 채널 VP9 + Opus 오디오: 알파를 지키면서 소리도 함께 옮기는 경로를 검증한다.
+ffmpeg -hide_banner -loglevel error -y \
+  -f lavfi -i "testsrc2=s=320x240:r=30:d=2,format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lt(hypot(X-160,Y-120),80),255,0)'" \
+  -f lavfi -i "sine=frequency=440:duration=2" \
+  -c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 -c:a libopus \
+  "$out/alpha-vp9-opus.webm"
+
 for f in "$out"/*.webm; do
   printf '%s\n' "--- $f"
   ffprobe -hide_banner -loglevel error -show_entries \

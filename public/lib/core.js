@@ -14,7 +14,7 @@ export const ALPHA_PIXEL_FORMATS = new Set([
 export const MAX_INPUT_BYTES = 2 * 1024 ** 3;
 
 /**
- * Shoost가 받아들이는 두 출구.
+ * 두 출구.
  *
  * VP8 WebM은 알파를 그대로 담을 수 있어 투명 소품(마이크, 책상, 이펙트)에 쓴다.
  * MP4는 알파를 담지 못하므로 투명 영상은 단색 배경 위에 구워서 크로마키로 넘긴다.

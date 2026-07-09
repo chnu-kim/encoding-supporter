@@ -107,7 +107,7 @@ function syncFormatUi() {
   show(el.badgeMp4, recommended === 'mp4-avc');
 
   el.descWebm.textContent = alpha.needsBackground
-    ? '투명 배경을 그대로 유지합니다. Shoost가 VP9는 못 읽어도 VP8은 읽습니다.'
+    ? '투명 배경을 그대로 유지합니다. VP9를 거부하는 프로그램도 VP8은 읽는 경우가 많습니다.'
     : '이 영상에는 투명 영역이 없어 MP4와 화면이 같습니다.';
 
   // 투명 영상을 MP4로 뽑을 때만 배경색을 물어본다.

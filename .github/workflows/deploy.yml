@@ -33,6 +33,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with:
+          # 새 저장소에서는 Pages가 꺼져 있어 첫 배포가 실패한다.
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./public
