@@ -55,6 +55,23 @@ AAC 인코더는 브라우저가 아니라 OS가 쥐고 있다. macOS는 AudioTo
 Foundation이 내주지만 **리눅스에는 없다**. 그래서 리눅스에서는 MP4에 소리를 담지 못하고, 사이트는
 그 사실을 경고로 알린다. e2e도 환경에 따라 검사를 갈라 양쪽 경로를 모두 본다.
 
+## 콘텐츠 보안 정책
+
+이 사이트는 아무 데도 연결하지 않는다. 그 사실을 `index.html`의 CSP로 브라우저에게 강제시킨다.
+GitHub Pages는 응답 헤더를 손댈 수 없어 `<meta>`로 싣는다.
+
+조이다 보면 조용히 깨지는 곳이 있다.
+
+- `worker-src blob:` — mediabunny가 인코딩을 blob URL 워커로 돌린다. **빼면 변환이 통째로 죽는다.**
+- `style-src 'self'` — HTML의 인라인 `style=` 속성을 막는다. 배경색 버튼 색을 CSS로 옮겨 둔 이유다.
+  `element.style.width = …` 같은 CSSOM 대입은 막지 않는다.
+- `frame-ancestors`·`report-uri`·`sandbox`는 `<meta>`로 전하면 무시된다.
+
+e2e가 콘솔 에러를 실패로 세므로, **e2e가 초록불이면 CSP가 아무것도 막지 않고 있다는 뜻**이다.
+정책이 켜져 있다는 사실 자체도 일부러 위반해 확인한다.
+
+## 개발 노트
+
 빌드 단계는 없다. `public/`이 그대로 배포된다. `public/vendor/`의 mediabunny는 손으로 복사한
 사본이라 `npm test`가 설치본과 바이트 단위로 대조한다. 의존성을 올렸다면 함께 갱신한다.
 

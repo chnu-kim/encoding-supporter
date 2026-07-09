@@ -3,6 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  이 사이트는 아무 데도 연결하지 않는다. 그 사실을 브라우저에게 강제시킨다.
+
+  worker-src blob: — mediabunny가 인코딩을 blob URL 워커로 돌린다. 빼면 변환이 조용히 깨진다.
+  media-src blob:  — 변환 결과 미리보기가 blob URL이다.
+  connect-src blob: — 다운로드 링크의 blob을 읽는다.
+  img-src data:    — 파비콘이 인라인 SVG다.
+  frame-ancestors·report-uri·sandbox는 meta로 전하면 무시되므로 넣지 않는다.
+-->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self';
+  img-src 'self' data:;
+  media-src 'self' blob:;
+  worker-src blob:;
+  connect-src 'self' blob:;
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none'">
 <title>Shoost용 webm 변환기</title>
 <meta name="description" content="Shoost가 읽지 못하는 webm 영상을 브라우저 안에서 VP8 WebM 또는 MP4로 변환합니다. 파일은 업로드되지 않습니다.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
@@ -72,9 +92,9 @@
       </p>
       <div class="bgrow__controls">
         <span class="swatches" role="group" aria-label="배경색 선택">
-          <button type="button" class="swatch is-selected" data-color="#00ff00" style="--c:#00ff00" aria-label="초록"></button>
-          <button type="button" class="swatch" data-color="#0000ff" style="--c:#0000ff" aria-label="파랑"></button>
-          <button type="button" class="swatch" data-color="#ff00ff" style="--c:#ff00ff" aria-label="마젠타"></button>
+          <button type="button" class="swatch swatch--green is-selected" data-color="#00ff00" aria-label="초록"></button>
+          <button type="button" class="swatch swatch--blue" data-color="#0000ff" aria-label="파랑"></button>
+          <button type="button" class="swatch swatch--magenta" data-color="#ff00ff" aria-label="마젠타"></button>
         </span>
         <label class="custom">
           직접 지정

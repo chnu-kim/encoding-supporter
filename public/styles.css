@@ -156,6 +156,10 @@ header h1 { margin: 0 0 .5rem; font-size: 1.65rem; letter-spacing: -.02em; }
   cursor: pointer;
   padding: 0;
 }
+/* 색은 여기 둔다. `style="--c:…"`로 두면 CSP의 style-src가 막아 버튼이 투명해진다. */
+.swatch--green { --c: #00ff00; }
+.swatch--blue { --c: #0000ff; }
+.swatch--magenta { --c: #ff00ff; }
 .swatch.is-selected { border-color: var(--text); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
 
 .custom { display: flex; align-items: center; gap: .5rem; font-size: .875rem; color: var(--muted); }
