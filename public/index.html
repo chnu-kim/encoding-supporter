@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shoost용 webm 변환기</title>
+<meta name="description" content="Shoost가 읽지 못하는 webm 영상을 브라우저 안에서 VP8 WebM 또는 MP4로 변환합니다. 파일은 업로드되지 않습니다.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="app">
+  <header>
+    <h1>Shoost용 webm 변환기</h1>
+    <p class="lede">
+      Shoost가 <strong>지원하지 않는 파일 형식</strong>이라며 거부하는 webm을 열어 볼 수 있는 형식으로 다시 씁니다.
+      영상은 <strong>브라우저 안에서만</strong> 처리되며 어디에도 업로드되지 않습니다.
+    </p>
+  </header>
+
+  <div id="unsupported" class="notice notice--error" hidden></div>
+
+  <section id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="webm 파일 선택">
+    <input type="file" id="fileInput" accept=".webm,video/webm,video/*" hidden>
+    <div class="dropzone__icon" aria-hidden="true">🎬</div>
+    <p class="dropzone__title">webm 파일을 끌어다 놓거나 클릭해서 선택하세요</p>
+    <p class="dropzone__hint">VP9 · VP8 · AV1 webm, mkv, mov 모두 읽습니다</p>
+  </section>
+
+  <div id="loadError" class="notice notice--error" hidden></div>
+
+  <section id="panel" class="panel" hidden>
+    <div class="filecard">
+      <div class="preview">
+        <canvas id="preview" class="preview__canvas"></canvas>
+      </div>
+      <dl class="meta">
+        <div><dt>파일</dt><dd id="metaName">—</dd></div>
+        <div><dt>크기</dt><dd id="metaSize">—</dd></div>
+        <div><dt>해상도</dt><dd id="metaResolution">—</dd></div>
+        <div><dt>길이</dt><dd id="metaDuration">—</dd></div>
+        <div><dt>코덱</dt><dd id="metaCodec">—</dd></div>
+        <div><dt>투명 배경</dt><dd id="metaAlpha">—</dd></div>
+      </dl>
+    </div>
+
+    <div id="inputWarning" class="notice notice--warn" hidden></div>
+
+    <fieldset class="formats">
+      <legend>변환할 형식</legend>
+
+      <label class="format" for="fmtWebm">
+        <input type="radio" name="format" id="fmtWebm" value="webm-vp8">
+        <span class="format__body">
+          <span class="format__title">WebM (VP8) <em id="badgeWebm" class="badge" hidden>추천</em></span>
+          <span class="format__desc" id="descWebm">투명 배경을 그대로 유지합니다. Shoost가 VP9는 못 읽어도 VP8은 읽습니다.</span>
+        </span>
+      </label>
+
+      <label class="format" for="fmtMp4">
+        <input type="radio" name="format" id="fmtMp4" value="mp4-avc">
+        <span class="format__body">
+          <span class="format__title">MP4 (H.264) <em id="badgeMp4" class="badge" hidden>추천</em></span>
+          <span class="format__desc" id="descMp4">가장 널리 열리는 형식입니다.</span>
+        </span>
+      </label>
+    </fieldset>
+
+    <div id="bgRow" class="bgrow" hidden>
+      <p class="bgrow__why">
+        MP4는 투명도를 담지 못합니다. 아래 색으로 배경을 칠해 내보내면 Shoost의 <strong>크로마키</strong>로 다시 지울 수 있습니다.
+      </p>
+      <div class="bgrow__controls">
+        <span class="swatches" role="group" aria-label="배경색 선택">
+          <button type="button" class="swatch is-selected" data-color="#00ff00" style="--c:#00ff00" aria-label="초록"></button>
+          <button type="button" class="swatch" data-color="#0000ff" style="--c:#0000ff" aria-label="파랑"></button>
+          <button type="button" class="swatch" data-color="#ff00ff" style="--c:#ff00ff" aria-label="마젠타"></button>
+        </span>
+        <label class="custom">
+          직접 지정
+          <input type="color" id="bgColor" value="#00ff00">
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="convertBtn" class="btn btn--primary">변환</button>
+      <button type="button" id="cancelBtn" class="btn" hidden>취소</button>
+      <button type="button" id="resetBtn" class="btn btn--ghost">다른 파일</button>
+    </div>
+
+    <div id="progressRow" class="progress" hidden>
+      <div class="progress__bar"><div id="progressFill" class="progress__fill"></div></div>
+      <span id="progressText" class="progress__text">0%</span>
+    </div>
+
+    <div id="error" class="notice notice--error" hidden></div>
+  </section>
+
+  <section id="result" class="result" hidden>
+    <h2>변환 완료</h2>
+    <div class="result__preview">
+      <video id="resultVideo" class="result__video" controls loop muted playsinline></video>
+    </div>
+    <p id="resultMeta" class="result__meta"></p>
+    <div id="resultWarning" class="notice notice--warn" hidden></div>
+    <a id="downloadLink" class="btn btn--primary" download>다운로드</a>
+    <p class="result__hint" id="resultHint"></p>
+  </section>
+
+  <footer>
+    <p>
+      변환은 WebCodecs로 이 페이지 안에서 실행됩니다. 서버가 없고, 파일은 전송되지 않습니다.
+      <br>미디어 처리는 <a href="https://mediabunny.dev" rel="noopener">mediabunny</a>(MPL-2.0)를 사용합니다.
+    </p>
+  </footer>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
