@@ -6,6 +6,7 @@ import {
   OUTPUT_FORMATS,
   MAX_INPUT_BYTES,
   analyzeAlpha,
+  createLatestTracker,
   getOutputFormat,
   recommendOutputFormat,
   toOutputFileName,
@@ -208,6 +209,46 @@ test('planConversion: 알파 채널은 있으나 투명 영역이 없으면 VP8�
   });
   assert.equal(p.alpha, 'discard', '쓸데없이 알파 평면을 인코딩하지 않는다');
   assert.equal(p.fill, null);
+});
+
+// --------------------------------------------------------- createLatestTracker
+
+test('createLatestTracker: 마지막으로 시작한 작업만 유효하다', () => {
+  const tracker = createLatestTracker();
+  const first = tracker.begin();
+  const second = tracker.begin();
+
+  assert.equal(tracker.isCurrent(first), false, '앞선 작업은 무효가 된다');
+  assert.equal(tracker.isCurrent(second), true);
+});
+
+test('createLatestTracker: 작업이 하나면 그대로 유효하다', () => {
+  const tracker = createLatestTracker();
+  assert.equal(tracker.isCurrent(tracker.begin()), true);
+});
+
+test('createLatestTracker: 늦게 끝난 앞선 작업이 나중 선택을 덮어쓰지 않는다', async () => {
+  // 큰 파일을 고른 뒤 곧바로 다른 파일을 고르는 상황.
+  const tracker = createLatestTracker();
+  const applied = [];
+
+  const load = async (name, delayMs) => {
+    const token = tracker.begin();
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    if (!tracker.isCurrent(token)) return;
+    applied.push(name);
+  };
+
+  await Promise.all([load('느린 첫 파일', 30), load('빠른 두 번째 파일', 1)]);
+  assert.deepEqual(applied, ['빠른 두 번째 파일']);
+});
+
+test('createLatestTracker: 인스턴스끼리 상태를 공유하지 않는다', () => {
+  const a = createLatestTracker();
+  const b = createLatestTracker();
+  const tokenA = a.begin();
+  b.begin();
+  assert.equal(a.isCurrent(tokenA), true);
 });
 
 // ----------------------------------------------------------------- formatBytes

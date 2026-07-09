@@ -1,5 +1,5 @@
 import {
-  OUTPUT_FORMATS, formatBytes, getOutputFormat, planConversion,
+  OUTPUT_FORMATS, createLatestTracker, formatBytes, getOutputFormat, planConversion,
   recommendOutputFormat, toOutputFileName, validateInput,
 } from './lib/core.js';
 import { checkBrowserSupport, convertFile, inspect } from './lib/convert.js';
@@ -50,6 +50,9 @@ const state = {
   objectUrl: null,
   support: null,
 };
+
+/** 파일을 연달아 고르면 마지막 선택만 화면에 남긴다. */
+const loads = createLatestTracker();
 
 // ------------------------------------------------------------------ helpers
 
@@ -160,12 +163,16 @@ function setBusy(busy) {
 // -------------------------------------------------------------------- flows
 
 async function loadFile(file) {
+  const token = loads.begin();
+
   revokeObjectUrl();
   show(el.result, false);
   show(el.panel, false);
   setNotice(el.error, '');
   setNotice(el.loadError, '');
   setNotice(el.inputWarning, '');
+  state.file = null;
+  state.info = null;
 
   const check = validateInput({ name: file.name, size: file.size });
   if (!check.ok) {
@@ -173,14 +180,23 @@ async function loadFile(file) {
     return;
   }
 
-  state.file = file;
+  let info;
   try {
-    state.info = await inspect(file);
+    info = await inspect(file);
   } catch (error) {
-    setNotice(el.loadError, `파일을 읽지 못했습니다. ${error.message}`);
+    if (loads.isCurrent(token)) setNotice(el.loadError, `파일을 읽지 못했습니다. ${error.message}`);
     return;
   }
-  renderInfo(file, state.info, check.warning);
+
+  // 조사가 도는 사이 다른 파일을 골랐다면 이 결과는 버린다.
+  if (!loads.isCurrent(token)) {
+    info.preview.close();
+    return;
+  }
+
+  state.file = file;
+  state.info = info;
+  renderInfo(file, info, check.warning);
 }
 
 async function runConversion() {
@@ -247,6 +263,7 @@ function showResult(blob, plan, droppedAudio, elapsedMs) {
 }
 
 function reset() {
+  loads.begin(); // 아직 도는 조사가 있으면 그 결과를 버린다.
   revokeObjectUrl();
   state.file = null;
   state.info = null;

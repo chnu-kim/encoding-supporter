@@ -139,6 +139,20 @@ export function planConversion({ alpha, formatId, backgroundColor }) {
   };
 }
 
+/**
+ * 겹쳐 실행되는 비동기 작업 중 마지막으로 시작한 것만 결과를 반영하게 한다.
+ *
+ * 큰 파일을 고른 뒤 곧바로 다른 파일을 고르면 먼저 시작한 조사가 나중에 끝나
+ * 나중 선택을 덮어쓸 수 있다.
+ */
+export function createLatestTracker() {
+  let latest = 0;
+  return {
+    begin: () => ++latest,
+    isCurrent: (token) => token === latest,
+  };
+}
+
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
 
 export function formatBytes(bytes) {
