@@ -461,6 +461,25 @@ console.log('\n[9] 콘텐츠 보안 정책이 켜져 있다');
   // 정책이 꺼져 있으면(오타로 meta가 무시되면) 이 인라인 style이 그대로 먹는다.
   check('인라인 style 속성이 차단된다', () => assert.equal(probe.applied, ''));
   check('위반이 style-src로 보고된다', () => assert.match(probe.violated ?? '', /style-src/));
+
+  // 이 사이트의 약속은 "영상이 브라우저를 떠나지 않는다"이다. 나가는 길이 정말 막혔는지 본다.
+  const network = await p.evaluate(async () => {
+    const attempt = async (fn) => {
+      try { await fn(); return 'allowed'; } catch { return 'blocked'; }
+    };
+    const blobUrl = URL.createObjectURL(new Blob(['ok']));
+    const result = {
+      sameOrigin: await attempt(() => fetch(location.href)),
+      external: await attempt(() => fetch('https://example.com/')),
+      blob: await attempt(() => fetch(blobUrl)),
+    };
+    URL.revokeObjectURL(blobUrl);
+    return result;
+  });
+
+  check('같은 출처로도 요청을 보내지 못한다', () => assert.equal(network.sameOrigin, 'blocked'));
+  check('바깥으로는 더더욱 보내지 못한다', () => assert.equal(network.external, 'blocked'));
+  check('그래도 손안의 blob은 읽을 수 있다', () => assert.equal(network.blob, 'allowed'));
   await p.close();
 }
 

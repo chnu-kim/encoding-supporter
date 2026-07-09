@@ -6,9 +6,12 @@
 <!--
   이 사이트는 아무 데도 연결하지 않는다. 그 사실을 브라우저에게 강제시킨다.
 
+  connect-src에 'self'를 넣지 않는다. 앱은 fetch를 쓰지 않으므로 같은 출처로 가는 요청조차
+  열어 둘 이유가 없다. 열어 두면 그 길로 사용자의 영상이 나갈 수 있다.
+
   worker-src blob: — mediabunny가 인코딩을 blob URL 워커로 돌린다. 빼면 변환이 조용히 깨진다.
   media-src blob:  — 변환 결과 미리보기가 blob URL이다.
-  connect-src blob: — 다운로드 링크의 blob을 읽는다.
+  connect-src blob: — 손안에 만들어 둔 결과 blob을 읽는다.
   img-src data:    — 파비콘이 인라인 SVG다.
   frame-ancestors·report-uri·sandbox는 meta로 전하면 무시되므로 넣지 않는다.
 -->
@@ -19,7 +22,7 @@
   img-src 'self' data:;
   media-src 'self' blob:;
   worker-src blob:;
-  connect-src 'self' blob:;
+  connect-src blob:;
   object-src 'none';
   base-uri 'none';
   form-action 'none'">
