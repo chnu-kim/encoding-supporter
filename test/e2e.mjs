@@ -280,6 +280,7 @@ console.log('\n[5] 변환 도중 취소: 내부 사정이 아니라 취소했다
     convertDisabled: document.getElementById('convertBtn').disabled,
     cancelHidden: document.getElementById('cancelBtn').hidden,
     progressHidden: document.getElementById('progressRow').hidden,
+    busy: document.getElementById('panel').getAttribute('aria-busy'),
   }));
 
   check('취소하면 취소했다고 알린다', () => assert.match(s.error, /취소/));
@@ -289,6 +290,7 @@ console.log('\n[5] 변환 도중 취소: 내부 사정이 아니라 취소했다
   check('취소 후 진행률을 감춘다', () => assert.equal(s.progressHidden, true));
   check('취소 후 취소 버튼을 감춘다', () => assert.equal(s.cancelHidden, true));
   check('취소 후 다시 변환할 수 있다', () => assert.equal(s.convertDisabled, false));
+  check('취소하면 aria-busy를 내린다', () => assert.equal(s.busy, 'false'));
 
   // 취소가 앱 상태를 오염시키지 않았는지, 짧은 파일로 끝까지 변환해 확인한다.
   await page.setInputFiles('#fileInput', join(fixtures, 'alpha-vp9.webm'));
@@ -297,6 +299,133 @@ console.log('\n[5] 변환 도중 취소: 내부 사정이 아니라 취소했다
   const recovered = await page.waitForSelector('#result:not([hidden])', { timeout: 120_000 })
     .then(() => true).catch(() => false);
   check('취소한 뒤에도 다음 변환이 정상 완료된다', () => assert.equal(recovered, true));
+}
+
+// -------------------------------------------- 6. 변환할 수 없는 브라우저는 파일을 받지 않는다
+
+/** 브라우저 기능을 지워 놓고 페이지를 연다. */
+async function openWith(disable) {
+  const p = await browser.newPage();
+  p.on('pageerror', (e) => failures.push(`pageerror: ${e.message}`));
+  p.on('console', (m) => { if (m.type() === 'error') failures.push(`console error: ${m.text()}`); });
+  await p.addInitScript(disable);
+  await p.goto(`${base}/public/index.html`);
+  await p.waitForFunction(() => globalThis.__app !== undefined);
+  return p;
+}
+
+console.log('\n[6] WebCodecs가 없는 브라우저: 파일을 받지 않고 진짜 이유를 말한다');
+{
+  const p = await openWith(() => {
+    delete globalThis.VideoEncoder;
+    delete globalThis.VideoDecoder;
+  });
+
+  const before = await p.evaluate(() => ({
+    bannerShown: !document.getElementById('unsupported').hidden,
+    bannerRole: document.getElementById('unsupported').getAttribute('role'),
+    focusable: document.getElementById('dropzone').hasAttribute('tabindex'),
+    ariaDisabled: document.getElementById('dropzone').getAttribute('aria-disabled'),
+  }));
+  check('변환할 수 없는 브라우저임을 알린다', () => assert.equal(before.bannerShown, true));
+  check('그 알림이 보조기술에 즉시 전달된다', () => assert.equal(before.bannerRole, 'alert'));
+  check('드롭존에 탭이 멈추지 않는다', () => assert.equal(before.focusable, false));
+  check('드롭존이 비활성으로 표시된다', () => assert.equal(before.ariaDisabled, 'true'));
+
+  // 파일을 강제로 밀어 넣어도 변환 패널이 열려선 안 된다.
+  await p.setInputFiles('#fileInput', join(fixtures, 'alpha-vp9.webm'));
+  await p.waitForTimeout(1500);
+  const after = await p.evaluate(() => ({
+    panelShown: !document.getElementById('panel').hidden,
+    loadError: document.getElementById('loadError').hidden ? null : document.getElementById('loadError').textContent,
+  }));
+  check('파일을 밀어 넣어도 변환 패널을 열지 않는다', () => assert.equal(after.panelShown, false));
+  check('코덱이 아니라 브라우저를 탓한다', () => {
+    assert.ok(after.loadError, '이유를 말하지 않았다');
+    assert.match(after.loadError, /WebCodecs/);
+    assert.doesNotMatch(after.loadError, /코덱입니다/);
+  });
+  await p.close();
+}
+
+// ------------------------------- 7. 인코더가 하나도 없는 브라우저 (WebCodecs는 있다)
+
+console.log('\n[7] 인코더가 하나도 없는 브라우저: 누를 수 없는 변환 버튼을 남기지 않는다');
+{
+  const p = await openWith(() => {
+    globalThis.VideoEncoder.isConfigSupported = async (config) => ({ supported: false, config });
+  });
+
+  const s = await p.evaluate(() => ({
+    support: globalThis.__app.state.support,
+    bannerShown: !document.getElementById('unsupported').hidden,
+  }));
+  check('어떤 인코더도 없으면 지원하지 않는다고 판정한다', () => assert.equal(s.support.ok, false));
+  check('그 사실을 알린다', () => assert.equal(s.bannerShown, true));
+
+  await p.setInputFiles('#fileInput', join(fixtures, 'alpha-vp9.webm'));
+  await p.waitForTimeout(1500);
+  const after = await p.evaluate(() => ({
+    panelShown: !document.getElementById('panel').hidden,
+    loadError: document.getElementById('loadError').hidden ? null : document.getElementById('loadError').textContent,
+  }));
+  check('변환 패널을 열지 않는다', () => assert.equal(after.panelShown, false));
+  check('인코딩할 수 없다는 이유를 밝힌다', () => assert.match(after.loadError ?? '', /인코딩/));
+  await p.close();
+}
+
+// ------------------------------------------- 8. 진행 상태를 보조기술에도 알린다
+
+console.log('\n[8] 진행 상태를 눈이 아니라 보조기술에도 알린다');
+{
+  await page.goto(`${base}/public/index.html`);
+  await page.waitForFunction(() => globalThis.__app !== undefined);
+  await page.setInputFiles('#fileInput', join(fixtures, 'alpha-vp9.webm'));
+  await page.waitForSelector('#panel:not([hidden])', { timeout: 30_000 });
+
+  const idle = await page.evaluate(() => ({
+    role: document.getElementById('progressBar').getAttribute('role'),
+    min: document.getElementById('progressBar').getAttribute('aria-valuemin'),
+    max: document.getElementById('progressBar').getAttribute('aria-valuemax'),
+  }));
+  check('진행률 막대가 progressbar로 노출된다', () => assert.equal(idle.role, 'progressbar'));
+  check('진행률 범위를 0~100으로 선언한다', () => {
+    assert.equal(idle.min, '0');
+    assert.equal(idle.max, '100');
+  });
+
+  // 진행률이 처음 오르는 자리에서 상태를 훔쳐본다. 변환은 그대로 끝까지 간다.
+  await page.click('#convertBtn');
+  const busy = await page.evaluate(() => new Promise((resolve, reject) => {
+    const text = document.getElementById('progressText');
+    const observer = new MutationObserver(() => {
+      if (Number.parseInt(text.textContent, 10) <= 0) return;
+      observer.disconnect();
+      clearTimeout(timer);
+      resolve({
+        valueNow: document.getElementById('progressBar').getAttribute('aria-valuenow'),
+        busy: document.getElementById('panel').getAttribute('aria-busy'),
+      });
+    });
+    const timer = setTimeout(() => {
+      observer.disconnect();
+      reject(new Error('진행률이 오르지 않았다'));
+    }, 60_000);
+    observer.observe(text, { childList: true, characterData: true, subtree: true });
+  }));
+
+  check('변환 중에는 진행률을 aria-valuenow로 읽어 준다', () => {
+    assert.ok(Number.parseInt(busy.valueNow, 10) > 0, `aria-valuenow=${busy.valueNow}`);
+  });
+  check('변환 중에는 패널을 aria-busy로 표시한다', () => assert.equal(busy.busy, 'true'));
+
+  await page.waitForSelector('#result:not([hidden])', { timeout: 120_000 });
+  const done = await page.evaluate(() => ({
+    busy: document.getElementById('panel').getAttribute('aria-busy'),
+    valueNow: document.getElementById('progressBar').getAttribute('aria-valuenow'),
+  }));
+  check('변환이 끝나면 aria-busy를 내린다', () => assert.equal(done.busy, 'false'));
+  check('변환이 끝나면 진행률이 100이다', () => assert.equal(done.valueNow, '100'));
 }
 
 // ---------------------------------------------------------------------------
