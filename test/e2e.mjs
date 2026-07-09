@@ -27,6 +27,8 @@ function serve() {
   const server = createServer(async (req, res) => {
     try {
       const path = join(root, normalize(decodeURIComponent(req.url.split('?')[0])));
+      // `..`가 섞인 경로로 저장소 밖을 읽지 못하게 한다.
+      if (!path.startsWith(root)) throw new Error('out of root');
       const body = await readFile(path);
       res.writeHead(200, { 'content-type': MIME[extname(path)] ?? 'application/octet-stream' });
       res.end(body);
@@ -83,8 +85,13 @@ const check = (name, fn) => {
   }
 };
 
+// 콘솔 에러는 화면이 멀쩡해 보여도 뭔가 깨졌다는 뜻이다. 눈으로 흘려보내지 않고 실패로 센다.
 page.on('pageerror', (e) => failures.push(`pageerror: ${e.message}`));
-page.on('console', (m) => { if (m.type() === 'error') console.error('  [console]', m.text()); });
+page.on('console', (m) => {
+  if (m.type() !== 'error') return;
+  console.error('  [console]', m.text());
+  failures.push(`console error: ${m.text()}`);
+});
 
 /** UI를 통해 파일을 올리고 변환한 뒤, 다운로드 blob을 디스크에 쓴다. */
 async function convertThroughUi({ fixture, formatId, background, outName }) {
