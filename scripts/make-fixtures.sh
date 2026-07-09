@@ -31,6 +31,13 @@ ffmpeg -hide_banner -loglevel error -y \
   -c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 -c:a libopus \
   "$out/alpha-vp9-opus.webm"
 
+# 인코딩이 한동안 돌아가는 알파 영상. 취소 버튼을 실제로 "변환 도중"에 누르려면
+# 변환이 눈 깜짝할 사이에 끝나면 안 된다.
+ffmpeg -hide_banner -loglevel error -y \
+  -f lavfi -i "testsrc2=s=960x540:r=30:d=8,format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lt(hypot(X-480,Y-270),200),255,0)'" \
+  -c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 \
+  "$out/alpha-vp9-long.webm"
+
 for f in "$out"/*.webm; do
   printf '%s\n' "--- $f"
   ffprobe -hide_banner -loglevel error -show_entries \
