@@ -67,6 +67,7 @@ header h1 { margin: 0 0 .5rem; font-size: 1.65rem; letter-spacing: -.02em; }
   background: var(--surface-2);
   outline: none;
 }
+.dropzone.is-disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
 .dropzone__icon { font-size: 2.5rem; line-height: 1; }
 .dropzone__title { margin: .75rem 0 .25rem; font-weight: 600; }
 .dropzone__hint { margin: 0; color: var(--muted); font-size: .875rem; }

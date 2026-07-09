@@ -31,6 +31,7 @@ const el = {
   cancelBtn: $('cancelBtn'),
   resetBtn: $('resetBtn'),
   progressRow: $('progressRow'),
+  progressBar: $('progressBar'),
   progressFill: $('progressFill'),
   progressText: $('progressText'),
   error: $('error'),
@@ -85,6 +86,14 @@ function revokeObjectUrl() {
 }
 
 const selectedFormatId = () => (el.fmtWebm.checked ? 'webm-vp8' : 'mp4-avc');
+
+/**
+ * 변환할 수 없는 브라우저에서는 파일을 아예 받지 않는다.
+ *
+ * 부팅이 끝나기 전(`support === null`)이나 인코더가 하나도 없는 브라우저에서 파일을 받으면
+ * 변환 패널이 열리고 누를 수 없는 변환 버튼만 남는다.
+ */
+const canConvert = () => state.support?.ok === true;
 
 // ----------------------------------------------------------------- rendering
 
@@ -149,6 +158,7 @@ function setProgress(value) {
   const pct = Math.round(value * 100);
   el.progressFill.style.width = `${pct}%`;
   el.progressText.textContent = `${pct}%`;
+  el.progressBar.setAttribute('aria-valuenow', String(pct));
 }
 
 function setBusy(busy) {
@@ -158,6 +168,7 @@ function setBusy(busy) {
   el.fmtMp4.disabled = busy || !state.support.avc;
   show(el.cancelBtn, busy);
   show(el.progressRow, busy);
+  el.panel.setAttribute('aria-busy', String(busy));
 }
 
 // -------------------------------------------------------------------- flows
@@ -173,6 +184,13 @@ async function loadFile(file) {
   setNotice(el.inputWarning, '');
   state.file = null;
   state.info = null;
+
+  // 변환하지 못할 브라우저라면 파일을 조사하지 않는다. 조사부터 하면 "디코드할 수 없는
+  // 코덱"이라며 코덱을 탓하게 되는데, 정작 문제는 브라우저에 인코더가 없다는 것이다.
+  if (!canConvert()) {
+    setNotice(el.loadError, state.support?.reason ?? '아직 준비 중입니다. 잠시 후 다시 시도해 주세요.');
+    return;
+  }
 
   const check = validateInput({ name: file.name, size: file.size });
   if (!check.ok) {
@@ -276,11 +294,13 @@ function reset() {
 
 // ------------------------------------------------------------------- events
 
-el.dropzone.addEventListener('click', () => el.fileInput.click());
+el.dropzone.addEventListener('click', () => {
+  if (canConvert()) el.fileInput.click();
+});
 el.dropzone.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
-    el.fileInput.click();
+    if (canConvert()) el.fileInput.click();
   }
 });
 
@@ -335,8 +355,9 @@ state.support = await checkBrowserSupport();
 if (!state.support.ok) {
   setNotice(el.unsupported, state.support.reason);
   el.dropzone.setAttribute('aria-disabled', 'true');
-  el.dropzone.style.pointerEvents = 'none';
-  el.dropzone.style.opacity = '.5';
+  el.dropzone.classList.add('is-disabled');
+  // 누를 수 없는 버튼에 탭이 멈추지 않게 한다.
+  el.dropzone.removeAttribute('tabindex');
 }
 
 // E2E 검증용 훅. 브라우저에서 직접 쓰는 API는 아니다.

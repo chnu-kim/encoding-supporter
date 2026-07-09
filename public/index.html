@@ -18,7 +18,7 @@
     </p>
   </header>
 
-  <div id="unsupported" class="notice notice--error" hidden></div>
+  <div id="unsupported" class="notice notice--error" role="alert" hidden></div>
 
   <section id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="webm 파일 선택">
     <input type="file" id="fileInput" accept=".webm,video/webm,video/*" hidden>
@@ -27,7 +27,7 @@
     <p class="dropzone__hint">VP9 · VP8 · AV1 webm, mkv, mov 모두 읽습니다</p>
   </section>
 
-  <div id="loadError" class="notice notice--error" hidden></div>
+  <div id="loadError" class="notice notice--error" role="alert" hidden></div>
 
   <section id="panel" class="panel" hidden>
     <div class="filecard">
@@ -44,7 +44,7 @@
       </dl>
     </div>
 
-    <div id="inputWarning" class="notice notice--warn" hidden></div>
+    <div id="inputWarning" class="notice notice--warn" role="alert" hidden></div>
 
     <fieldset class="formats">
       <legend>변환할 형식</legend>
@@ -90,11 +90,14 @@
     </div>
 
     <div id="progressRow" class="progress" hidden>
-      <div class="progress__bar"><div id="progressFill" class="progress__fill"></div></div>
+      <div id="progressBar" class="progress__bar" role="progressbar" aria-label="변환 진행률"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="progressFill" class="progress__fill"></div>
+      </div>
       <span id="progressText" class="progress__text">0%</span>
     </div>
 
-    <div id="error" class="notice notice--error" hidden></div>
+    <div id="error" class="notice notice--error" role="alert" hidden></div>
   </section>
 
   <section id="result" class="result" hidden>
@@ -103,7 +106,7 @@
       <video id="resultVideo" class="result__video" controls loop muted playsinline></video>
     </div>
     <p id="resultMeta" class="result__meta"></p>
-    <div id="resultWarning" class="notice notice--warn" hidden></div>
+    <div id="resultWarning" class="notice notice--warn" role="alert" hidden></div>
     <a id="downloadLink" class="btn btn--primary" download>다운로드</a>
     <p class="result__hint" id="resultHint"></p>
   </section>
