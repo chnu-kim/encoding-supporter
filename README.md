@@ -48,8 +48,12 @@ npm run serve       # http://localhost:8080
 VP8 산출물에 `alpha_mode=1`이 붙었는지, MP4 산출물의 배경 픽셀이 고른 색인지까지 확인한다.
 페이지에서 난 콘솔 에러도 실패로 센다. 둘 다 CI에서 매 PR마다 돌린다.
 
-MP4 경로는 Chromium이 아니라 **Google Chrome**을 요구한다. AAC와 H.264 인코더가 공식 빌드에만
-들어 있기 때문이다.
+MP4 경로는 Chromium이 아니라 **Google Chrome**을 요구한다. H.264 인코더가 공식 빌드에만 들어
+있기 때문이다.
+
+AAC 인코더는 브라우저가 아니라 OS가 쥐고 있다. macOS는 AudioToolbox, Windows는 Media
+Foundation이 내주지만 **리눅스에는 없다**. 그래서 리눅스에서는 MP4에 소리를 담지 못하고, 사이트는
+그 사실을 경고로 알린다. e2e도 환경에 따라 검사를 갈라 양쪽 경로를 모두 본다.
 
 빌드 단계는 없다. `public/`이 그대로 배포된다. `public/vendor/`의 mediabunny는 손으로 복사한
 사본이라 `npm test`가 설치본과 바이트 단위로 대조한다. 의존성을 올렸다면 함께 갱신한다.
