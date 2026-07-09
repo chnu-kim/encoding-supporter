@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 같은 브랜치에 연달아 푸시하면 앞선 PR 검사는 취소한다. main 배포는 끝까지 돌린다.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      # Pages는 저장소 설정에서 build_type=workflow로 미리 켜 둔다.
+      # configure-pages의 enablement 옵션은 GITHUB_TOKEN으로는 동작하지 않는다.
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./public
+      - id: deployment
+        uses: actions/deploy-pages@v5
