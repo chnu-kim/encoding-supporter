@@ -1,0 +1,12 @@
+{
+  "name": "encoding-supporter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shoost가 읽지 못하는 webm을 브라우저에서 MP4로 변환하는 정적 웹사이트",
+  "scripts": {
+    "test": "node --test test/",
+    "serve": "python3 -m http.server 8080 --directory public"
+  },
+  "license": "MIT"
+}
