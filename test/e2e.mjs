@@ -255,12 +255,23 @@ console.log('\n[5] 변환 도중 취소: 내부 사정이 아니라 취소했다
   await page.waitForSelector('#panel:not([hidden])', { timeout: 30_000 });
 
   await page.click('#convertBtn');
-  // 인코더가 실제로 돌기 시작한 뒤에 눌러야 취소 경로를 지나간다.
-  await page.waitForFunction(
-    () => Number.parseInt(document.getElementById('progressText').textContent, 10) > 0,
-    { timeout: 60_000 },
-  );
-  await page.click('#cancelBtn');
+  // 인코더가 실제로 돌고 있는 동안 눌러야 이 회귀를 지나간다. 진행률이 처음 오르는 바로 그
+  // 자리에서 누른다. 밖에서 폴링하면 그 사이에 변환이 끝나 취소 버튼이 사라질 수 있다.
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const text = document.getElementById('progressText');
+    const observer = new MutationObserver(() => {
+      if (Number.parseInt(text.textContent, 10) <= 0) return;
+      observer.disconnect();
+      clearTimeout(timer);
+      document.getElementById('cancelBtn').click();
+      resolve();
+    });
+    const timer = setTimeout(() => {
+      observer.disconnect();
+      reject(new Error('진행률이 오르지 않아 취소를 눌러 볼 수 없었다'));
+    }, 60_000);
+    observer.observe(text, { childList: true, characterData: true, subtree: true });
+  }));
   await page.waitForSelector('#error:not([hidden])', { timeout: 30_000 });
 
   const s = await page.evaluate(() => ({
